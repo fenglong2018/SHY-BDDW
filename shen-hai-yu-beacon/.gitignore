@@ -1,0 +1,37 @@
+# ---- 固件编译产物 ----
+firmware/build/
+bootloader/build/
+firmware/build_log.txt
+firmware/App/debug_config.h
+firmware/*.spec
+
+# ---- RT-Thread Nano 源码（体积大，通过 git clone 获取）----
+firmware/RTThread/nano/
+
+# ---- 上位机打包产物 ----
+host_tool/dist/
+host_tool/build_tmp/
+host_tool/*.spec
+host_tool/__pycache__/
+host_tool/core/__pycache__/
+host_tool/ui/__pycache__/
+
+# ---- Python ----
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+.venv/
+venv/
+
+# ---- 编辑器 ----
+.vscode/settings.json
+*.swp
+*.swo
+.DS_Store
+Thumbs.db
+
+# ---- 日志 ----
+*.log

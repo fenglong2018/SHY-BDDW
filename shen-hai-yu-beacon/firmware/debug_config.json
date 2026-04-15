@@ -1,0 +1,21 @@
+{
+    "comment": "调试模块开关，true=启用调试输出，false=关闭",
+    "modules": {
+        "GNSS":   true,
+        "RDSS":   true,
+        "BEACON": true,
+        "LED":    false,
+        "ADC":    true,
+        "PWR":    false,
+        "USB":    false
+    },
+    "options": {
+        "LOG_LEVEL":       2,
+        "comment_level":   "0=关闭 1=ERROR 2=INFO 3=DEBUG",
+        "GNSS_DUMP_RAW":   false,
+        "RDSS_DUMP_FRAME": false,
+        "BEACON_VERBOSE":  false,
+        "USE_BOOTLOADER":  false,
+        "comment_boot":    "false=App从0x08000000启动(调试用), true=App从0x08004000启动(有Bootloader)"
+    }
+}

@@ -1,0 +1,27 @@
+{
+    "configurations": [
+        {
+            "name": "ARM",
+            "includePath": [
+                "${workspaceFolder}/firmware/Core",
+                "${workspaceFolder}/firmware/Drivers",
+                "${workspaceFolder}/firmware/RTThread",
+                "${workspaceFolder}/firmware/App",
+                "${workspaceFolder}/firmware/RTThread/nano/include",
+                "${workspaceFolder}/firmware/RTThread/nano/libcpu/arm/cortex-m4"
+            ],
+            "defines": [
+                "N32L403",
+                "USE_RTTHREAD",
+                "__ARM_ARCH_7EM__"
+            ],
+            "compilerPath": "arm-none-eabi-gcc",
+            "cStandard": "c11",
+            "intelliSenseMode": "gcc-arm",
+            "forcedInclude": [
+                "${workspaceFolder}/firmware/RTThread/rtconfig.h"
+            ]
+        }
+    ],
+    "version": 4
+}
