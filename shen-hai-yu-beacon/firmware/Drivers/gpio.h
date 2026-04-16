@@ -20,28 +20,26 @@ typedef struct {
 
 /* ---- 引脚定义 ---- */
 /* LED */
-#define LED1_PORT       GPIOA
-#define LED1_PIN        1       /* PA1 - 运行指示 */
+#define LED1_PORT       GPIOD
+#define LED1_PIN        15      /* PD15 - 运行指示 */
 #define LED2_PORT       GPIOB
-#define LED2_PIN        4       /* PB4 - 电量指示 */
+#define LED2_PIN        5       /* PB5 - 电量指示 */
 #define LED3_PORT       GPIOB
-#define LED3_PIN        5       /* PB5 - 状态指示 */
+#define LED3_PIN        3       /* PB3 - 状态指示 */
 
 /* 功耗控制 */
 #define EN_PGNSS_PORT   GPIOB
-#define EN_PGNSS_PIN    6       /* PB6 - GNSS 使能 */
+#define EN_PGNSS_PIN    6       /* PB6 - GNSS 使能，高电平开 */
 #define EN_PRDSS_PORT   GPIOD
-#define EN_PRDSS_PIN    14      /* PD14 - 短报文使能 */
-#define EN_PA_PORT      GPIOA
-#define EN_PA_PIN       6       /* PA6 - PA 功放使能 */
+#define EN_PRDSS_PIN    14      /* PD14 - 短报文使能，高电平开 */
 #define CVPOW5V_PORT    GPIOA
-#define CVPOW5V_PIN     7       /* PA7 - 5V 功耗控制 */
+#define CVPOW5V_PIN     2       /* PA2 - RDSS PA 电源，高电平开 */
 
 /* 输入 */
 #define MAGKEY_PORT     GPIOA
-#define MAGKEY_PIN      5       /* PA5 - 磁控开关 */
+#define MAGKEY_PIN      7       /* PA7 - 磁控开关 */
 #define KEY_FALL_PORT   GPIOB
-#define KEY_FALL_PIN    7       /* PB7 - 落水检测 */
+#define KEY_FALL_PIN    4       /* PB4 - 落水检测 / 按键 */
 #define USB_IN_PORT     GPIOA
 #define USB_IN_PIN      8       /* PA8 - USB 插入检测 */
 #define BOOT_PORT       GPIOD
@@ -54,7 +52,7 @@ void GPIO_ResetPin(GPIO_TypeDef *port, uint8_t pin);
 void GPIO_TogglePin(GPIO_TypeDef *port, uint8_t pin);
 bool GPIO_ReadPin(GPIO_TypeDef *port, uint8_t pin);
 
-/* LED 便捷宏 */
+/* LED 便捷宏（低电平点亮） */
 #define LED1_ON()       GPIO_ResetPin(LED1_PORT, LED1_PIN)
 #define LED1_OFF()      GPIO_SetPin(LED1_PORT, LED1_PIN)
 #define LED1_TOGGLE()   GPIO_TogglePin(LED1_PORT, LED1_PIN)
@@ -63,17 +61,46 @@ bool GPIO_ReadPin(GPIO_TypeDef *port, uint8_t pin);
 #define LED3_ON()       GPIO_ResetPin(LED3_PORT, LED3_PIN)
 #define LED3_OFF()      GPIO_SetPin(LED3_PORT, LED3_PIN)
 
-/* 模块使能宏 */
-#define GNSS_POWER_ON()     GPIO_SetPin(EN_PGNSS_PORT, EN_PGNSS_PIN)
-#define GNSS_POWER_OFF()    GPIO_ResetPin(EN_PGNSS_PORT, EN_PGNSS_PIN)
-#define RDSS_POWER_ON()     GPIO_SetPin(EN_PRDSS_PORT, EN_PRDSS_PIN)
-#define RDSS_POWER_OFF()    GPIO_ResetPin(EN_PRDSS_PORT, EN_PRDSS_PIN)
-#define PA_POWER_ON()       GPIO_SetPin(EN_PA_PORT, EN_PA_PIN)
-#define PA_POWER_OFF()      GPIO_ResetPin(EN_PA_PORT, EN_PA_PIN)
+/* 模块使能宏
+ * CVPOW5V  (PA2): 高电平开，低电平关  → RDSS PA 电源
+ * EN_PGNSS (PB6): 高电平开，低电平关  → GNSS 模块电源
+ * EN_PRDSS (PD14):高电平开，低电平关  → 短报文模块电源
+ *
+ * 开启顺序：先拉高 CVPOW5V（PA 上电），再拉高 EN_PGNSS/EN_PRDSS
+ * 关闭顺序：先拉低 EN_PGNSS/EN_PRDSS，再拉低 CVPOW5V
+ */
+#define GNSS_POWER_ON()  do { \
+    GPIO_SetPin(CVPOW5V_PORT, CVPOW5V_PIN);     /* CVPOW5V 高电平，5V上电 */ \
+    GPIO_SetPin(EN_PGNSS_PORT, EN_PGNSS_PIN);   /* EN_PGNSS 高电平，使能 */ \
+} while(0)
 
-/* 输入读取宏 */
-#define IS_MAGKEY_ACTIVE()  (!GPIO_ReadPin(MAGKEY_PORT, MAGKEY_PIN))
-#define IS_FALL_DETECTED()  (!GPIO_ReadPin(KEY_FALL_PORT, KEY_FALL_PIN))
-#define IS_USB_INSERTED()   (GPIO_ReadPin(USB_IN_PORT, USB_IN_PIN))
+#define GNSS_POWER_OFF() do { \
+    GPIO_ResetPin(EN_PGNSS_PORT, EN_PGNSS_PIN); /* EN_PGNSS 低电平，关闭 */ \
+} while(0)
+
+#define RDSS_POWER_ON()  do { \
+    GPIO_SetPin(CVPOW5V_PORT, CVPOW5V_PIN);     /* CVPOW5V 高电平，5V上电 */ \
+    GPIO_SetPin(EN_PRDSS_PORT, EN_PRDSS_PIN);   /* EN_PRDSS 高电平，使能 */ \
+} while(0)
+
+#define RDSS_POWER_OFF() do { \
+    GPIO_ResetPin(EN_PRDSS_PORT, EN_PRDSS_PIN); /* EN_PRDSS 低电平，关闭 */ \
+} while(0)
+
+/* 两个模块都关闭后才关 CVPOW5V */
+#define ALL_MODULE_POWER_OFF() do { \
+    GPIO_ResetPin(EN_PGNSS_PORT, EN_PGNSS_PIN); /* EN_PGNSS 低电平，关闭 */ \
+    GPIO_ResetPin(EN_PRDSS_PORT, EN_PRDSS_PIN); /* EN_PRDSS 低电平，关闭 */ \
+    GPIO_ResetPin(CVPOW5V_PORT,  CVPOW5V_PIN);  /* CVPOW5V  低电平，5V断电 */ \
+} while(0)
+
+/* 输入读取宏
+ * USB_IN  (PA8): 插入=低电平，未插=高电平
+ * KEY_FALL(PB4): 落水/按下=高电平，正常/松开=低电平
+ * MAGKEY  (PA7): 触发=低电平（霍尔传感器，磁铁靠近拉低）
+ */
+#define IS_MAGKEY_ACTIVE()  (!GPIO_ReadPin(MAGKEY_PORT, MAGKEY_PIN))  /* 低电平触发 */
+#define IS_FALL_DETECTED()  (GPIO_ReadPin(KEY_FALL_PORT, KEY_FALL_PIN)) /* 高电平=落水/按下 */
+#define IS_USB_INSERTED()   (!GPIO_ReadPin(USB_IN_PORT, USB_IN_PIN))    /* 低电平=已插入 */
 
 #endif /* __GPIO_H__ */
