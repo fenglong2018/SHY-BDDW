@@ -18,7 +18,7 @@ typedef struct {
 #define RCC ((RCC_T *)0x40021000UL)
 
 typedef struct { volatile uint32_t CRL, CRH, IDR, ODR, BSRR, BRR, LCKR; } GPIO_T;
-#define GPIOA_ADC ((GPIO_T *)0x40010800UL)
+#define GPIOB_ADC ((GPIO_T *)0x40010C00UL)
 
 /* ---- 450mAh 锂电池 OCV-SOC 查找表 ----
  * 列: [电压mV, 电量%]，从满到空
@@ -51,16 +51,16 @@ static const uint16_t BAT_CURVE[][2] = {
 
 void ADC_Init(void)
 {
-    RCC->APB2ENR |= (1U << 9) | (1U << 2);  /* ADC1EN + IOPAEN */
+    RCC->APB2ENR |= (1U << 9) | (1U << 3);  /* ADC1EN + IOPBEN */
 
-    /* PA4 模拟输入 (CNF=00, MODE=00) */
-    GPIOA_ADC->CRL &= ~(0xFU << 16);
+    /* PB1 模拟输入 (CNF=00, MODE=00)，CRL bit[7:4] */
+    GPIOB_ADC->CRL &= ~(0xFU << 4);
 
     ADC1->CR2   = (1U << 0);    /* ADON */
     ADC1->CR1   = 0;
     ADC1->SQR1  = 0;
-    ADC1->SQR3  = 4;            /* CH4 = PA4 */
-    ADC1->SMPR2 = (7U << 12);   /* 239.5 cycles */
+    ADC1->SQR3  = 9;            /* CH9 = PB1 */
+    ADC1->SMPR2 = (7U << 27);   /* CH9: SMPR2[29:27], 239.5 cycles */
 
     /* 校准 */
     ADC1->CR2 |= (1U << 3);
@@ -81,7 +81,7 @@ uint16_t ADC_ReadBatMv(void)
 {
     /* 16 次采样，去掉最大最小各2个，取中间12个均值（中位数滤波）*/
     uint16_t samples[16];
-    for (int i = 0; i < 16; i++) samples[i] = ADC_Read(4);
+    for (int i = 0; i < 16; i++) samples[i] = ADC_Read(9);
 
     /* 简单冒泡排序（16个元素，开销极小）*/
     for (int i = 0; i < 15; i++)

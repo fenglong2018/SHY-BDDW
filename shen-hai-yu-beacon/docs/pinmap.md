@@ -5,20 +5,18 @@
 | 引脚号 | 引脚名 | 方向 | 网络名 | 功能说明 |
 |--------|--------|------|--------|----------|
 | 1 | VDD | PWR | VCC_3V3 | 电源 3.3V |
-| 2 | PD14 | IN | — | OSC_IN (可选外部晶振) |
-| 3 | PD15 | OUT | — | OSC_OUT |
+| 2 | PD14 | OUT | MCU_EN_PRDSS | 短报文模块 3.3V 供电使能 |
+| 3 | PD15 | OUT | LED1 | 运行指示 LED |
 | 4 | NRST | IN | MCU_NRST | 复位，外部按键/调试器 |
 | 5 | VDDA | PWR | VCC_3V3 | 模拟电源 |
-| 6 | PA0 | IN/OUT | UART2_RX | 短报文模块 UART2 RX |
-| 7 | PA1 | OUT | LED1 | 运行指示 LED (低有效) |
-| 8 | PA2 | OUT | UART2_TX | 短报文模块 UART2 TX |
-| 9 | PA3 | IN | — | 预留 |
-| 10 | PA4 | IN | AD_BAT | 电池电压 ADC 采集 |
-| 11 | PA5 | IN | MCU_MAGKEY | 磁控开关输入 |
-| 12 | PA6 | OUT | MCU_EN_PA | PA 功放使能 (高有效) |
-| 13 | PA7 | OUT | CVPOW5V | 5V 功耗控制 |
-| 14 | PB0 | IN | — | 预留 |
-| 15 | PB1 | IN | — | 预留 |
+| 6 | PA0 | IN | UART2_RX | 短报文模块 UART2 RX |
+| 7 | PA1 | OUT | UART2_TX | 短报文模块 UART2 TX |
+| 8 | PA2 | OUT | CVPOW5V | RDSS PA 电源控制脚 |
+| 9 | PA3 | — | — | 预留 |
+| 10~12 | — | — | — | 空脚 |
+| 13 | PA7 | IN | MCU_MAGKEY | 磁控开关输入 |
+| 14 | — | — | — | 空脚 |
+| 15 | PB1 | IN | AD_BAT | 电池电压 ADC 采集 |
 | 16 | VSS | GND | GND | 地 |
 | 17 | VDD | PWR | VCC_3V3 | 电源 3.3V |
 | 18 | PA8 | IN | MCU_I_USB_IN | USB 插入检测 |
@@ -28,31 +26,30 @@
 | 22 | PA12 | IN/OUT | USB_DP | USB D+ |
 | 23 | PA13 | IN/OUT | SWDIO | SWD 调试数据 |
 | 24 | PA14 | IN | SWCLK | SWD 调试时钟 |
-| 25 | PA15 | IN | — | 预留 |
-| 26 | PB3 | IN | — | 预留 |
-| 27 | PB4 | OUT | LED2 | 电量指示 LED |
-| 28 | PB5 | OUT | LED3 | 状态 LED |
+| 25 | — | — | — | 空脚 |
+| 26 | PB3 | OUT | LED3 | 状态 LED |
+| 27 | PB4 | IN | KEY_FALL / KEY1 | 落水检测 / 按键 |
+| 28 | PB5 | OUT | LED2 | 电量指示 LED |
 | 29 | PB6 | OUT | MCU_EN_PGNSS | GNSS 模块电源使能 |
-| 30 | PB7 | IN | KEY_FALL / KEY1 | 落水检测 / 按键 |
 | 31 | PD0 | IN | MCU_BOOT | BOOT0 启动模式选择 |
 | 32 | VSS | GND | GND | 地 |
 | 33 | GND | GND | GND | 裸露焊盘 |
 
-> PD14 (pin2) 同时连接 MCU_EN_PRDSS，用于短报文模块电源使能
+> 空脚：9~12、14、25、38
 
 ## UART 分配
 
 | 外设 | TX | RX | 波特率 | 对端模块 |
 |------|----|----|--------|----------|
 | UART1 | PA9 | PA10 | 9600 | B305-5Q GNSS |
-| UART2 | PA2 | PA0 | 9600 | TD3203B 短报文 |
+| UART2 | PA1 | PA0 | 9600 | TD3203B 短报文 |
 | UART_CH | MCU_CH_TXD | MCU_CH_RXD | 115200 | 调试串口 (H2) |
 
 ## ADC 分配
 
 | 通道 | 引脚 | 网络 | 量程 | 说明 |
 |------|------|------|------|------|
-| ADC_CH4 | PA4 | AD_BAT | 0~3.3V | 电池电压，分压比 R23(1.2M)/R24(3.3M) |
+| ADC_CH9 | PB1 | AD_BAT | 0~3.3V | 电池电压，分压比 R23(1.2M)/R24(3.3M) |
 
 电池电压计算：
 ```
@@ -67,14 +64,13 @@ V_BAT = V_ADC × (R23 + R24) / R24
 |--------|------|------|----------|------|
 | MCU_EN_PGNSS | PB6 | OUT | 高 | 控制 GNSS 模块 LDO 使能 |
 | MCU_EN_PRDSS | PD14 | OUT | 高 | 控制短报文模块 LDO 使能 |
-| MCU_EN_PA | PA6 | OUT | 高 | 控制 PA 功放 5V 使能 |
-| CVPOW5V | PA7 | OUT | 高 | 控制 5V 总线功耗 |
-| MCU_MAGKEY | PA5 | IN | 低 | 磁控开关触发 |
-| KEY_FALL | PB7 | IN | 低 | 落水检测开关 |
-| KEY1 | PB7 | IN | 低 | 用户按键 (复用) |
-| MCU_I_USB_IN | PA8 | IN | 高 | USB 已插入 |
+| CVPOW5V | PA2 | OUT | 高 | 控制 RDSS PA 5V 电源 |
+| MCU_MAGKEY | PA7 | IN | 低 | 磁控开关触发 |
+| KEY_FALL | PB4 | IN | 高 | 落水检测开关 |
+| KEY1 | PB4 | IN | 高 | 用户按键 (复用) |
+| MCU_I_USB_IN | PA8 | IN | 低 | USB 已插入 |
 | MCU_BOOT | PD0 | IN | 高 | 进入 Bootloader |
 | MCU_NRST | NRST | IN | 低 | 硬件复位 |
-| LED1 | PA1 | OUT | 低 | 运行指示 |
-| LED2 | PB4 | OUT | 低 | 电量指示 |
-| LED3 | PB5 | OUT | 低 | 状态指示 |
+| LED1 | PD15 | OUT | 低 | 运行指示 |
+| LED2 | PB5 | OUT | 低 | 电量指示 |
+| LED3 | PB3 | OUT | 低 | 状态指示 |

@@ -135,8 +135,10 @@ static void _do_work_window(void)
     /* 等待短报文发送完成，最多 8s */
     rt_sem_take(sem_work_done, rt_tick_from_millisecond(8000));
 
+    /* 关电：先关模块使能，再关 CVPOW5V 5V总线 */
     GNSS_POWER_OFF();
     RDSS_POWER_OFF();
+    ALL_MODULE_POWER_OFF();
     rt_kprintf("[%s] work window end\n", TAG);
 }
 
@@ -216,8 +218,7 @@ static void thread_beacon_entry(void *param)
             rt_kprintf("[%s] deep sleep...\n", TAG);
 
             /* 关闭所有外设 */
-            GNSS_POWER_OFF();
-            RDSS_POWER_OFF();
+            ALL_MODULE_POWER_OFF();
             LED1_OFF(); LED2_OFF(); LED3_OFF();
 
             /* 进入 Stop 模式，等待 EXTI 唤醒 */
@@ -269,8 +270,7 @@ static void thread_beacon_entry(void *param)
                                      - g_status.sos_start_sec;
             if (test_elapsed >= TEST_MAX_DURATION_S) {
                 rt_kprintf("[%s] TEST MODE timeout 72h, exit\n", TAG);
-                GNSS_POWER_OFF();
-                RDSS_POWER_OFF();
+                ALL_MODULE_POWER_OFF();
                 rt_mutex_take(mtx_status, RT_WAITING_FOREVER);
                 g_status.sos_active = RT_FALSE;
                 g_status.phase      = PHASE_IDLE;
@@ -281,8 +281,7 @@ static void thread_beacon_entry(void *param)
             if (IS_FALL_DETECTED()) {
                 while (IS_FALL_DETECTED()) rt_thread_mdelay(10);
                 rt_kprintf("[%s] TEST MODE exit by key\n", TAG);
-                GNSS_POWER_OFF();
-                RDSS_POWER_OFF();
+                ALL_MODULE_POWER_OFF();
                 rt_mutex_take(mtx_status, RT_WAITING_FOREVER);
                 g_status.sos_active = RT_FALSE;
                 g_status.phase      = PHASE_IDLE;
