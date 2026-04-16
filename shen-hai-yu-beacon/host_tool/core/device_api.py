@@ -75,3 +75,18 @@ class DeviceAPI:
 
     def enter_dfu(self) -> Optional[dict]:
         return self._send_cmd({"cmd": "enter_dfu"}, timeout=3.0)
+
+    def get_gpio(self) -> Optional[dict]:
+        return self._send_cmd({"cmd": "get_gpio"})
+
+    def set_gpio(self, pd14: Optional[int] = None,
+                 pa2: Optional[int] = None,
+                 pb6: Optional[int] = None) -> Optional[dict]:
+        cmd: dict = {"cmd": "set_gpio"}
+        if pd14 is not None:
+            cmd["pd14"] = pd14
+        if pa2 is not None:
+            cmd["pa2"] = pa2
+        if pb6 is not None:
+            cmd["pb6"] = pb6
+        return self._send_cmd(cmd)

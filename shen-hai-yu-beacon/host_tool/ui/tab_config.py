@@ -78,11 +78,16 @@ class ConfigTab(QWidget):
             ("固件版本", "fw_ver"),
             ("北斗卡号", "bdid"),
             ("电池电压", "bat_mv"),
-            ("电量", "bat_pct"),
+            ("电量",     "bat_pct"),
         ]
+        ro_grid.setColumnMinimumWidth(0, 100)
+        ro_grid.setHorizontalSpacing(12)
         for row, (label, key) in enumerate(ro_items):
-            ro_grid.addWidget(QLabel(label + ":"), row, 0, Qt.AlignmentFlag.AlignRight)
+            lbl = QLabel(label + ":")
+            lbl.setMinimumWidth(100)
+            ro_grid.addWidget(lbl, row, 0, Qt.AlignmentFlag.AlignRight)
             val = QLabel("—")
+            val.setMinimumWidth(200)
             val.setStyleSheet("color: #333; background: #f5f5f5; padding: 2px 6px; border-radius: 3px;")
             val.setTextInteractionFlags(Qt.TextInteractionFlag.TextSelectableByMouse)
             ro_grid.addWidget(val, row, 1)
@@ -111,6 +116,42 @@ class ConfigTab(QWidget):
             rw_grid.addWidget(btn, row, 2)
             self._fields_rw[key] = edit
         layout.addWidget(rw_group)
+
+        # ---- GPIO 控制 ----
+        gpio_group = QGroupBox("GPIO 控制（电源使能）")
+        gpio_grid = QGridLayout(gpio_group)
+        gpio_grid.setColumnStretch(1, 1)
+
+        self._gpio_btns = {}
+        gpio_items = [
+            ("PD14 - RDSS 模块使能 (EN_PRDSS)", "pd14"),
+            ("PA2  - RDSS PA 5V 电源 (CVPOW5V)", "pa2"),
+            ("PB6  - GNSS 模块使能 (EN_PGNSS)",  "pb6"),
+        ]
+        for row, (label, key) in enumerate(gpio_items):
+            gpio_grid.addWidget(QLabel(label + ":"), row, 0, Qt.AlignmentFlag.AlignRight)
+            state_lbl = QLabel("—")
+            state_lbl.setStyleSheet("color: #333; background: #f5f5f5; padding: 2px 6px; border-radius: 3px; min-width: 40px;")
+            gpio_grid.addWidget(state_lbl, row, 1)
+            btn_on = QPushButton("开")
+            btn_on.setFixedWidth(48)
+            btn_on.setStyleSheet("QPushButton { color: #080; }")
+            btn_on.clicked.connect(lambda checked, k=key: self._set_gpio(k, 1))
+            btn_off = QPushButton("关")
+            btn_off.setFixedWidth(48)
+            btn_off.setStyleSheet("QPushButton { color: #c00; }")
+            btn_off.clicked.connect(lambda checked, k=key: self._set_gpio(k, 0))
+            btn_read = QPushButton("读取")
+            btn_read.setFixedWidth(48)
+            btn_read.clicked.connect(self._read_gpio)
+            gpio_grid.addWidget(btn_on,   row, 2)
+            gpio_grid.addWidget(btn_off,  row, 3)
+            if row == 0:
+                gpio_grid.addWidget(btn_read, row, 4)
+            self._gpio_btns[key] = (state_lbl, btn_on, btn_off)
+            btn_on.setEnabled(False)
+            btn_off.setEnabled(False)
+        layout.addWidget(gpio_group)
 
         # ---- 操作按钮 ----
         btn_layout = QHBoxLayout()
@@ -147,8 +188,12 @@ class ConfigTab(QWidget):
         self._dfu_btn.setEnabled(True)
         for edit in self._fields_rw.values():
             edit.setEnabled(True)
+        for lbl, btn_on, btn_off in self._gpio_btns.values():
+            btn_on.setEnabled(True)
+            btn_off.setEnabled(True)
         self._log_msg("已连接，点击「读取所有信息」获取设备数据")
         self._read_all()
+        self._read_gpio()
 
     def on_disconnected(self):
         self._api = None
@@ -158,6 +203,10 @@ class ConfigTab(QWidget):
             edit.setEnabled(False)
         for lbl in self._fields_ro.values():
             lbl.setText("—")
+        for lbl, btn_on, btn_off in self._gpio_btns.values():
+            lbl.setText("—")
+            btn_on.setEnabled(False)
+            btn_off.setEnabled(False)
 
     def _log_msg(self, msg: str):
         from PyQt6.QtCore import QDateTime
@@ -221,3 +270,35 @@ class ConfigTab(QWidget):
             self._log_msg("发送 enter_dfu 命令...")
             self._api.enter_dfu()
             self._log_msg("设备正在重启，请切换到「固件升级」标签页")
+
+    def _read_gpio(self):
+        if not self._api:
+            return
+        r = self._api.get_gpio()
+        if r and r.get("ok"):
+            self._update_gpio_labels(r)
+        else:
+            self._log_msg("GPIO 读取失败")
+
+    def _update_gpio_labels(self, data: dict):
+        for key in ("pd14", "pa2", "pb6"):
+            if key in data and key in self._gpio_btns:
+                lbl, _, _ = self._gpio_btns[key]
+                val = data[key]
+                if val:
+                    lbl.setText("高 (开)")
+                    lbl.setStyleSheet("color: #080; background: #e8f5e9; padding: 2px 6px; border-radius: 3px; min-width: 40px;")
+                else:
+                    lbl.setText("低 (关)")
+                    lbl.setStyleSheet("color: #c00; background: #fdecea; padding: 2px 6px; border-radius: 3px; min-width: 40px;")
+
+    def _set_gpio(self, key: str, val: int):
+        if not self._api:
+            return
+        r = self._api.set_gpio(**{key: val})
+        if r and r.get("ok"):
+            self._update_gpio_labels(r)
+            self._log_msg(f"GPIO {key.upper()} 已设置为 {'高(开)' if val else '低(关)'}")
+        else:
+            err = r.get("err", "无响应") if r else "无响应"
+            self._log_msg(f"GPIO 设置失败: {err}")
