@@ -13,8 +13,17 @@ SIZE    = arm-none-eabi-size
 
 CPU     = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard
 
-MKDIR   = mkdir
-RM      = rmdir /s /q
+UNAME_S := $(shell uname -s 2>/dev/null || echo Windows)
+ifeq ($(UNAME_S),Linux)
+  MKDIR_P = mkdir -p
+  RM_RF   = rm -rf $(BUILD)
+else ifeq ($(UNAME_S),Darwin)
+  MKDIR_P = mkdir -p
+  RM_RF   = rm -rf $(BUILD)
+else
+  MKDIR_P = cmd /c if not exist "$(subst /,\,$1)" mkdir "$(subst /,\,$1)"
+  RM_RF   = cmd /c if exist "$(subst /,\,$(BUILD))" rmdir /s /q "$(subst /,\,$(BUILD))"
+endif
 
 C_SRCS = \
     boot_main.c     \
@@ -43,10 +52,6 @@ LDFLAGS = $(CPU) \
           -lc -lm -lnosys \
           --specs=nano.specs
 
-define MAKEDIR_CMD
-cmd /c if not exist "$(subst /,\,$1)" mkdir "$(subst /,\,$1)"
-endef
-
 OBJS = \
     $(addprefix $(BUILD)/, $(C_SRCS:.c=.o)) \
     $(addprefix $(BUILD)/, $(notdir $(AS_SRCS:.s=.o)))
@@ -60,11 +65,11 @@ $(BUILD)/$(TARGET).elf: $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
 
 $(BUILD)/%.o: %.c
-	$(call MAKEDIR_CMD,$(BUILD))
+	@$(MKDIR_P) $(BUILD)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 $(BUILD)/startup_n32l403.o: ../firmware/Core/startup_n32l403.s
-	$(call MAKEDIR_CMD,$(BUILD))
+	@$(MKDIR_P) $(BUILD)
 	$(AS) $(ASFLAGS) -c $< -o $@
 
 $(BUILD)/$(TARGET).hex: $(BUILD)/$(TARGET).elf
@@ -74,4 +79,4 @@ $(BUILD)/$(TARGET).bin: $(BUILD)/$(TARGET).elf
 	$(OBJCOPY) -O binary -S $< $@
 
 clean:
-	cmd /c if exist "$(subst /,\,$(BUILD))" $(RM) "$(subst /,\,$(BUILD))"
+	$(RM_RF)

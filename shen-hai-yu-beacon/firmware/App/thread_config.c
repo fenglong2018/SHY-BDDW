@@ -67,6 +67,24 @@ static bool _json_get_str(const char *json, const char *key,
     return true;
 }
 
+/* ---- 简易 JSON 解析：提取整数字段值 ----
+ * 在 json 中找 "key":N，将 N 写入 out
+ * 返回 true=找到
+ */
+static bool _json_get_int(const char *json, const char *key, int *out)
+{
+    char search[32];
+    snprintf(search, sizeof(search), "\"%s\":", key);
+    const char *p = strstr(json, search);
+    if (!p) return false;
+    p += strlen(search);
+    while (*p == ' ') p++;
+    if (*p != '0' && *p != '1' && *p != '-' &&
+        (*p < '2' || *p > '9')) return false;
+    *out = (int)(*p - '0');
+    return true;
+}
+
 /* ---- 处理单条命令，返回 JSON 响应字符串 ---- */
 static void _handle_cmd(const char *cmd_buf, char *rsp, size_t rsp_len)
 {
@@ -272,6 +290,47 @@ static void _handle_cmd(const char *cmd_buf, char *rsp, size_t rsp_len)
         return;
     }
 
+    /* ---- get_gpio: 读取三路电源引脚状态 ---- */
+    /* 响应: {"ok":true,"pd14":1,"pa2":0,"pb6":1} */
+    if (strcmp(cmd, "get_gpio") == 0) {
+        uint8_t pd14 = GPIO_ReadPin(EN_PRDSS_PORT, EN_PRDSS_PIN) ? 1 : 0;
+        uint8_t pa2  = GPIO_ReadPin(CVPOW5V_PORT,  CVPOW5V_PIN)  ? 1 : 0;
+        uint8_t pb6  = GPIO_ReadPin(EN_PGNSS_PORT, EN_PGNSS_PIN) ? 1 : 0;
+        snprintf(rsp, rsp_len,
+            "{\"ok\":true,\"pd14\":%d,\"pa2\":%d,\"pb6\":%d}\n",
+            pd14, pa2, pb6);
+        return;
+    }
+
+    /* ---- set_gpio: 设置三路电源引脚 ---- */
+    /* 格式: {"cmd":"set_gpio","pd14":1,"pa2":0,"pb6":1}
+     * 字段可选，只传需要改变的引脚；值 1=高电平(开)，0=低电平(关)
+     */
+    if (strcmp(cmd, "set_gpio") == 0) {
+        int val;
+        if (_json_get_int(cmd_buf, "pd14", &val)) {
+            if (val) GPIO_SetPin(EN_PRDSS_PORT, EN_PRDSS_PIN);
+            else     GPIO_ResetPin(EN_PRDSS_PORT, EN_PRDSS_PIN);
+        }
+        if (_json_get_int(cmd_buf, "pa2", &val)) {
+            if (val) GPIO_SetPin(CVPOW5V_PORT, CVPOW5V_PIN);
+            else     GPIO_ResetPin(CVPOW5V_PORT, CVPOW5V_PIN);
+        }
+        if (_json_get_int(cmd_buf, "pb6", &val)) {
+            if (val) GPIO_SetPin(EN_PGNSS_PORT, EN_PGNSS_PIN);
+            else     GPIO_ResetPin(EN_PGNSS_PORT, EN_PGNSS_PIN);
+        }
+        /* 回读当前状态 */
+        uint8_t pd14 = GPIO_ReadPin(EN_PRDSS_PORT, EN_PRDSS_PIN) ? 1 : 0;
+        uint8_t pa2  = GPIO_ReadPin(CVPOW5V_PORT,  CVPOW5V_PIN)  ? 1 : 0;
+        uint8_t pb6  = GPIO_ReadPin(EN_PGNSS_PORT, EN_PGNSS_PIN) ? 1 : 0;
+        snprintf(rsp, rsp_len,
+            "{\"ok\":true,\"pd14\":%d,\"pa2\":%d,\"pb6\":%d}\n",
+            pd14, pa2, pb6);
+        DINF(TAG, EN, "GPIO set: PD14=%d PA2=%d PB6=%d", pd14, pa2, pb6);
+        return;
+    }
+
     /* ---- enter_dfu: 请求进入 Bootloader DFU 模式 ---- */
     if (strcmp(cmd, "enter_dfu") == 0) {
         snprintf(rsp, rsp_len,
@@ -316,7 +375,7 @@ static void thread_config_entry(void *param)
     snprintf(welcome, sizeof(welcome),
         "\r\n=== %s ===\r\n"
         "FW: %s | HW: %d.%d.%d | SN: %s | UID: %s\r\n"
-        "Commands: get_info/get_ver/get_sn/set_sn/set_hw_ver/get_uid/set_uid/get_bdid/get_status\r\n"
+        "Commands: get_info/get_ver/get_sn/set_sn/set_hw_ver/get_uid/set_uid/get_bdid/get_status/get_gpio/set_gpio\r\n"
         "Format: {\"cmd\":\"get_info\"}\\n\r\n",
         PRODUCT_NAME,
         FW_VERSION_STR,

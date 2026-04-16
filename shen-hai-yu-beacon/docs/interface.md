@@ -122,11 +122,54 @@ $CCRMO,EPQ,1,*09\r\n   关闭连续EPQ
 
 ---
 
-## 3. USB CDC 调试接口
+## 3. USB CDC 配置接口
 
 - PA11 = USB_DM, PA12 = USB_DP
 - 插入 Type-C 后电脑识别为 COM 口
-- 输出 `rt_kprintf` 日志，波特率无关
+- 命令格式：JSON，每条以 `\n` 结尾
+- 响应格式：JSON，包含 `ok` 字段
+
+### 命令列表
+
+| 命令 | 方向 | 说明 |
+|------|------|------|
+| `get_info` | 上位机→MCU | 读取所有基本信息 |
+| `get_sn` / `set_sn` | 上位机→MCU | 读写产品序列号 |
+| `get_uid` / `set_uid` | 上位机→MCU | 读写唯一识别码 |
+| `set_hw_ver` | 上位机→MCU | 写入硬件版本 |
+| `get_bdid` | 上位机→MCU | 读取北斗卡号 |
+| `get_status` | 上位机→MCU | 读取运行状态 |
+| `get_gpio` | 上位机→MCU | 读取三路电源引脚状态 |
+| `set_gpio` | 上位机→MCU | 设置三路电源引脚 |
+| `enter_dfu` | 上位机→MCU | 进入 Bootloader 升级模式 |
+
+### GPIO 控制命令
+
+三路可控引脚：
+
+| 字段 | 引脚 | 功能 | 高电平 | 低电平 |
+|------|------|------|--------|--------|
+| `pd14` | PD14 | RDSS 模块使能 (EN_PRDSS) | 开 | 关 |
+| `pa2` | PA2 | RDSS PA 5V 电源 (CVPOW5V) | 开 | 关 |
+| `pb6` | PB6 | GNSS 模块使能 (EN_PGNSS) | 开 | 关 |
+
+**读取状态：**
+```json
+{"cmd":"get_gpio"}
+```
+响应：
+```json
+{"ok":true,"pd14":0,"pa2":0,"pb6":0}
+```
+
+**设置引脚（字段可选，只传需要改变的）：**
+```json
+{"cmd":"set_gpio","pd14":1,"pa2":1,"pb6":0}
+```
+响应（回读当前状态）：
+```json
+{"ok":true,"pd14":1,"pa2":1,"pb6":0}
+```
 
 ---
 

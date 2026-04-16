@@ -10,7 +10,8 @@ uint8_t  ADC_BatPercent(void);                          /* 放电状态电量 */
 uint8_t  ADC_BatPercentEx(uint16_t mv, bool charging);  /* 带充电补偿 */
 
 /* 低电量阈值 */
-#define BAT_LOW_THRESHOLD_PCT   10U    /* 10% 以下低电量告警 */
+#define BAT_LOW_THRESHOLD_PCT   10U    /* 10% 以下进入低电保护休眠 */
+#define BAT_WAKE_THRESHOLD_PCT  50U    /* 充电至 50% 以上才允许唤醒 */
 #define BAT_CRIT_THRESHOLD_MV   3400U  /* 3.4V 以下停止发报文 */
 
 #endif /* __ADC_H__ */

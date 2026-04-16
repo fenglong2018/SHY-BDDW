@@ -16,8 +16,13 @@ SIZE    = arm-none-eabi-size
 CPU     = -mcpu=cortex-m4 -mthumb -mfpu=fpv4-sp-d16 -mfloat-abi=hard
 
 # Windows 下目录创建命令（兼容正斜杠和反斜杠）
-MKDIR   = mkdir
-RM      = rmdir /s /q
+ifeq ($(OS),Windows_NT)
+  MKDIR_P = cmd /c if not exist "$(subst /,\,$1)" mkdir "$(subst /,\,$1)"
+  RM_RF   = cmd /c if exist "$(subst /,\,$(BUILD))" rmdir /s /q "$(subst /,\,$(BUILD))"
+else
+  MKDIR_P = mkdir -p $1
+  RM_RF   = rm -rf $(BUILD)
+endif
 
 # ---- RT-Thread Nano 源码路径 ----
 RTT_DIR = RTThread/nano/rt-thread
@@ -93,10 +98,9 @@ OBJS = \
     $(addprefix $(BUILD)/, $(RTT_C_SRCS:.c=.o))  \
     $(addprefix $(BUILD)/, $(RTT_AS_SRCS:.S=.o))
 
-# ---- 辅助宏：Windows 下创建目录（路径含正斜杠，转换为反斜杠） ----
-# 使用 cmd /c if not exist ... mkdir ...
+# ---- 辅助宏：创建目录 ----
 define MAKEDIR
-cmd /c if not exist "$(subst /,\,$1)" mkdir "$(subst /,\,$1)"
+$(call MKDIR_P,$(dir $1))
 endef
 
 # ---- 规则 ----
@@ -106,24 +110,24 @@ all: gendbg $(BUILD)/$(TARGET).hex $(BUILD)/$(TARGET).bin
 	$(SIZE) $(BUILD)/$(TARGET).elf
 
 gendbg:
-	python gen_debug.py
+	python3 gen_debug.py
 
 $(BUILD)/$(TARGET).elf: $(OBJS)
 	$(CC) $(OBJS) $(LDFLAGS) -o $@
 
 # C 源文件编译规则
 $(BUILD)/%.o: %.c
-	$(call MAKEDIR,$(dir $(BUILD)/$*.o))
+	@$(call MKDIR_P,$(dir $(BUILD)/$*.o))
 	$(CC) $(CFLAGS) -c $< -o $@
 
 # .s 汇编（小写）
 $(BUILD)/%.o: %.s
-	$(call MAKEDIR,$(dir $(BUILD)/$*.o))
+	@$(call MKDIR_P,$(dir $(BUILD)/$*.o))
 	$(AS) $(ASFLAGS) -c $< -o $@
 
 # .S 汇编（大写，RT-Thread context_gcc.S）
 $(BUILD)/%.o: %.S
-	$(call MAKEDIR,$(dir $(BUILD)/$*.o))
+	@$(call MKDIR_P,$(dir $(BUILD)/$*.o))
 	$(AS) $(ASFLAGS) -c $< -o $@
 
 $(BUILD)/$(TARGET).hex: $(BUILD)/$(TARGET).elf
@@ -141,4 +145,4 @@ size:
 	$(SIZE) $(BUILD)/$(TARGET).elf
 
 clean:
-	cmd /c if exist "$(subst /,\,$(BUILD))" $(RM) "$(subst /,\,$(BUILD))"
+	$(RM_RF)

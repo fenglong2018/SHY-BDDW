@@ -199,7 +199,7 @@ static void thread_beacon_entry(void *param)
         rt_mutex_release(mtx_status);
 
         if (usb_in && phase == PHASE_IDLE) {
-            /* 充电待机：轮询按键，其余时间 LED 线程负责流水灯 */
+            /* 充电待机：先检测低电（USB接入时由 LOW_BAT 处理，此处不重复进入） */
             rt_uint8_t key = _detect_sos_key();
             if (key == 1) {
                 _update_battery();
@@ -212,9 +212,51 @@ static void thread_beacon_entry(void *param)
         }
 
         /* ============================================================
+         * PHASE_LOW_BAT: 低电保护休眠，等待充电至 ≥50%
+         * ============================================================ */
+        if (phase == PHASE_LOW_BAT) {
+            rt_kprintf("[%s] LOW_BAT sleep, waiting for charge >= 50%%\n", TAG);
+
+            /* 关闭所有外设 */
+            ALL_MODULE_POWER_OFF();
+            LED1_OFF(); LED2_OFF(); LED3_OFF();
+
+            /* 定时唤醒检测充电状态，每 10s 一次 */
+            PWR_EnterStopSeconds(10);
+
+            /* 唤醒后更新电量 */
+            _update_battery();
+
+            /* 检查是否充电且电量 >= 50% */
+            rt_mutex_take(mtx_status, RT_WAITING_FOREVER);
+            rt_bool_t usb = g_status.usb_in;
+            rt_uint8_t pct = g_status.bat_pct;
+            rt_mutex_release(mtx_status);
+
+            if (usb && pct >= BAT_WAKE_THRESHOLD_PCT) {
+                rt_kprintf("[%s] charged to %d%%, exit LOW_BAT\n", TAG, pct);
+                _set_phase(PHASE_IDLE);
+            }
+            continue;
+        }
+
+        /* ============================================================
          * PHASE_IDLE: 深度休眠，等待 SOS 按键
          * ============================================================ */
         if (phase == PHASE_IDLE) {
+            /* 进入休眠前检测低电 */
+            _update_battery();
+            rt_mutex_take(mtx_status, RT_WAITING_FOREVER);
+            rt_uint8_t pct = g_status.bat_pct;
+            rt_bool_t usb = g_status.usb_in;
+            rt_mutex_release(mtx_status);
+
+            if (!usb && pct <= BAT_LOW_THRESHOLD_PCT) {
+                rt_kprintf("[%s] battery %d%% <= 10%%, enter LOW_BAT\n", TAG, pct);
+                _set_phase(PHASE_LOW_BAT);
+                continue;
+            }
+
             rt_kprintf("[%s] deep sleep...\n", TAG);
 
             /* 关闭所有外设 */
@@ -350,8 +392,11 @@ static void thread_beacon_entry(void *param)
 
         /* 低电量保护：电压有效且低于 3.4V 时停止发报文 */
         if (g_status.bat_mv > 0 && g_status.bat_mv < BAT_CRIT_THRESHOLD_MV) {
-            rt_kprintf("[%s] critical battery %dmV, stop\n", TAG, g_status.bat_mv);
-            _set_phase(PHASE_EXPIRED);
+            rt_kprintf("[%s] critical battery %dmV, enter LOW_BAT\n", TAG, g_status.bat_mv);
+            rt_mutex_take(mtx_status, RT_WAITING_FOREVER);
+            g_status.sos_active = RT_FALSE;
+            rt_mutex_release(mtx_status);
+            _set_phase(PHASE_LOW_BAT);
             continue;
         }
 

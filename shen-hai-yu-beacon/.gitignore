@@ -6,7 +6,7 @@ firmware/App/debug_config.h
 firmware/*.spec
 
 # ---- RT-Thread Nano 源码（体积大，通过 git clone 获取）----
-firmware/RTThread/nano/
+# firmware/RTThread/nano/
 
 # ---- 上位机打包产物 ----
 host_tool/dist/

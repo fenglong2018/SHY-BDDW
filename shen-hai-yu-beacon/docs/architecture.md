@@ -248,6 +248,10 @@ stateDiagram-v2
 
     IDLE : IDLE\n深度休眠 Stop模式\n电流 < 10μA
 
+    IDLE --> LOW_BAT : 电量 ≤ 10%\n且未充电
+    LOW_BAT : LOW_BAT\n低电保护休眠\n每10s唤醒检测充电
+    LOW_BAT --> IDLE : USB充电中\n且电量 ≥ 50%
+
     IDLE --> BAT_DISPLAY : 短按(<500ms)
     BAT_DISPLAY --> IDLE : 5秒后自动
 
@@ -271,8 +275,22 @@ stateDiagram-v2
         }
     }
 
-    WORK_CYCLE --> IDLE : 72h到期\n或电压<3.4V
+    WORK_CYCLE --> IDLE : 72h到期
+    WORK_CYCLE --> LOW_BAT : 电压 < 3.4V\n(低电保护)
 ```
+
+### 低电保护机制
+
+| 触发条件 | 动作 | 恢复条件 |
+|----------|------|----------|
+| IDLE 时电量 ≤ 10%（未充电） | 进入 PHASE_LOW_BAT | USB充电中 且 电量 ≥ 50% |
+| 救援模式电压 < 3.4V | 停止发报文，进入 PHASE_LOW_BAT | USB充电中 且 电量 ≥ 50% |
+
+PHASE_LOW_BAT 行为：
+- 关闭所有外设（GNSS/RDSS/LED）
+- 每 10s 通过 RTC 闹钟唤醒一次
+- 唤醒后采集电量，检测 USB 充电状态
+- 满足恢复条件后回到 PHASE_IDLE，允许正常使用
 
 ## 10. USB 配置接口 (thread_config)
 

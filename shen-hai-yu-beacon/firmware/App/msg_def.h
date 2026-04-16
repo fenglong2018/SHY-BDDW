@@ -35,6 +35,7 @@ typedef enum {
     PHASE_3_72H,        /* 3~72h: 每15min 上报一次 */
     PHASE_EXPIRED,      /* 72h 后停止 */
     PHASE_TEST,         /* 超长按8s：测试模式，每2min发送一次，任意按键退出 */
+    PHASE_LOW_BAT,      /* 低电保护：电量≤10%，永久休眠直到充电至≥50% */
 } BeaconPhase_t;
 
 /* ---- 设备全局状态（受 mtx_status 保护） ---- */
